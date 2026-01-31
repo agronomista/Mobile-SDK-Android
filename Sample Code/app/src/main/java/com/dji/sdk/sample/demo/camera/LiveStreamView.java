@@ -44,7 +44,10 @@ import static com.dji.sdk.sample.internal.utils.ToastUtils.showToast;
  */
 public class LiveStreamView extends LinearLayout implements PresentableView, View.OnClickListener {
 
-    private String liveShowUrl = "please input your live show url here";
+    private static final String DEFAULT_LIVE_URL = "rtmp://192.168.100.7/live/stream";
+    private static final boolean AUTO_START_STREAM = true;
+
+    private String liveShowUrl = DEFAULT_LIVE_URL;
 
     private VideoFeedView primaryVideoFeedView;
     private VideoFeedView fpvVideoFeedView;
@@ -71,7 +74,8 @@ public class LiveStreamView extends LinearLayout implements PresentableView, Vie
 
     public LiveStreamView(Context context) {
         super(context);
-        liveShowUrl = context.getSharedPreferences(context.getPackageName(), Context.MODE_PRIVATE).getString(URL_KEY, liveShowUrl);
+        liveShowUrl = context.getSharedPreferences(context.getPackageName(), Context.MODE_PRIVATE)
+                .getString(URL_KEY, DEFAULT_LIVE_URL);
         initUI(context);
         initListener();
     }
@@ -160,6 +164,10 @@ public class LiveStreamView extends LinearLayout implements PresentableView, Vie
         }
         if (isLiveStreamManagerOn()){
             DJISDKManager.getInstance().getLiveStreamManager().registerListener(listener);
+        }
+        if (AUTO_START_STREAM && isLiveStreamManagerOn()
+                && !DJISDKManager.getInstance().getLiveStreamManager().isStreaming()) {
+            startLiveShow();
         }
     }
 

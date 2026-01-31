@@ -7,12 +7,14 @@ import androidx.annotation.NonNull;
 import com.dji.sdk.sample.R;
 import com.dji.sdk.sample.internal.controller.DJISampleApplication;
 import com.dji.sdk.sample.internal.utils.ModuleVerificationUtil;
+import com.dji.sdk.sample.internal.utils.TelemetryUdpSender;
 import com.dji.sdk.sample.internal.utils.ToastUtils;
 import com.dji.sdk.sample.internal.view.BaseThreeBtnView;
 
 import dji.common.error.DJIError;
 import dji.common.flightcontroller.FlightControllerState;
 import dji.common.flightcontroller.FlightOrientationMode;
+import dji.common.flightcontroller.LocationCoordinate3D;
 import dji.common.util.CommonCallbacks;
 import dji.sdk.flightcontroller.FlightController;
 
@@ -23,9 +25,13 @@ import dji.sdk.flightcontroller.FlightController;
  */
 public class OrientationModeView extends BaseThreeBtnView {
 
+    private static final String TELEMETRY_HOST = "192.168.100.7";
+    private static final int TELEMETRY_PORT = 5005;
+
     private FlightController flightController;
 
     private String orientationMode;
+    private TelemetryUdpSender telemetryUdpSender;
 
     public OrientationModeView(Context context) {
         super(context);
@@ -37,13 +43,23 @@ public class OrientationModeView extends BaseThreeBtnView {
 
         if (ModuleVerificationUtil.isFlightControllerAvailable()) {
             flightController = DJISampleApplication.getAircraftInstance().getFlightController();
+            telemetryUdpSender = new TelemetryUdpSender(TELEMETRY_HOST, TELEMETRY_PORT);
 
             flightController.setStateCallback(new FlightControllerState.Callback() {
                 @Override
                 public void onUpdate(@NonNull FlightControllerState flightControllerState) {
                     orientationMode = flightControllerState.getOrientationMode().name();
-                    changeDescription("Current Orientation Mode is" + "\n" +
-                                          orientationMode);
+                    LocationCoordinate3D aircraftLocation = flightControllerState.getAircraftLocation();
+                    String locationText = "N/A";
+                    if (aircraftLocation != null) {
+                        locationText = aircraftLocation.getLatitude()
+                                + ", " + aircraftLocation.getLongitude()
+                                + " (alt " + aircraftLocation.getAltitude() + "m)";
+                        telemetryUdpSender.send(buildTelemetryPayload(aircraftLocation));
+                    }
+                    changeDescription("Current Orientation Mode is" + "\n"
+                            + orientationMode + "\n"
+                            + "Aircraft Location: " + locationText);
                 }
             });
         }
@@ -56,6 +72,10 @@ public class OrientationModeView extends BaseThreeBtnView {
         if(ModuleVerificationUtil.isFlightControllerAvailable()) {
             flightController = DJISampleApplication.getAircraftInstance().getFlightController();
             flightController.setStateCallback(null);
+        }
+        if (telemetryUdpSender != null) {
+            telemetryUdpSender.close();
+            telemetryUdpSender = null;
         }
     }
 
@@ -133,5 +153,14 @@ public class OrientationModeView extends BaseThreeBtnView {
     @Override
     public int getDescription() {
         return R.string.flight_controller_listview_orientation_mode;
+    }
+
+    private String buildTelemetryPayload(LocationCoordinate3D location) {
+        long timestampMs = System.currentTimeMillis();
+        return "{\"ts\":" + timestampMs
+                + ",\"lat\":" + location.getLatitude()
+                + ",\"lng\":" + location.getLongitude()
+                + ",\"alt\":" + location.getAltitude()
+                + "}";
     }
 }
