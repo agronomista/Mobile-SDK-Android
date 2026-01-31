@@ -13,6 +13,7 @@ import com.dji.sdk.sample.internal.view.BaseThreeBtnView;
 import dji.common.error.DJIError;
 import dji.common.flightcontroller.FlightControllerState;
 import dji.common.flightcontroller.FlightOrientationMode;
+import dji.common.flightcontroller.LocationCoordinate3D;
 import dji.common.util.CommonCallbacks;
 import dji.sdk.flightcontroller.FlightController;
 
@@ -42,8 +43,16 @@ public class OrientationModeView extends BaseThreeBtnView {
                 @Override
                 public void onUpdate(@NonNull FlightControllerState flightControllerState) {
                     orientationMode = flightControllerState.getOrientationMode().name();
-                    changeDescription("Current Orientation Mode is" + "\n" +
-                                          orientationMode);
+                    LocationCoordinate3D aircraftLocation = flightControllerState.getAircraftLocation();
+                    String locationText = "N/A";
+                    if (aircraftLocation != null) {
+                        locationText = aircraftLocation.getLatitude()
+                                + ", " + aircraftLocation.getLongitude()
+                                + " (alt " + aircraftLocation.getAltitude() + "m)";
+                    }
+                    changeDescription("Current Orientation Mode is" + "\n"
+                            + orientationMode + "\n"
+                            + "Aircraft Location: " + locationText);
                 }
             });
         }
